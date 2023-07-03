@@ -3,7 +3,7 @@ const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 8000;
 
 // middleware
 app.use(cors());
@@ -34,6 +34,13 @@ async function run() {
     const homeDesignCollection = database.collection("homeDesign");
     const usersCollection = database.collection("users");
     const apartmentBookingCollection = database.collection("apartmentBooking");
+    const apartmentRentCollection = database.collection("apartmentRent");
+    const serviceItemsCollection = client
+      .db("constructionDbUser")
+      .collection("items");
+    const ordersCollection = client
+      .db("constructionDbUser")
+      .collection("orders");
 
     // get all services
     app.get("/homeDesign", async (req, res) => {
@@ -45,6 +52,44 @@ async function run() {
       const result = await apartmentBookingCollection.find({}).toArray();
       res.json(result);
     });
+
+    // get all ServiceItems
+    app.get("/allServiceItems", async (req, res) => {
+      const result = await serviceItemsCollection.find({}).toArray();
+      res.json(result);
+    });
+    // single service
+    app.get("/singleService/:id", async (req, res) => {
+      console.log(req.params.id);
+      const result = await apartmentBookingCollection
+        .find({ _id: ObjectId(req.params.id) })
+        .toArray();
+      res.json(result[0]);
+    });
+    // insert order and
+
+    app.post("/addOrders", async (req, res) => {
+      // console.log(req.body);
+      const result = await ordersCollection.insertOne(req.body);
+      res.json(result);
+    });
+
+    //  my order
+
+    app.get("/myOrder/:email", async (req, res) => {
+      // console.log(req.params.email);
+      const result = await ordersCollection
+        .find({ email: req.params.email })
+        .toArray();
+      res.json(result);
+    });
+
+    //get RentapartmentBooking
+    app.get("/apartmentRent", async (req, res) => {
+      const result = await apartmentRentCollection.find({}).toArray();
+      res.json(result);
+    });
+
     app.get("/users/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
@@ -95,9 +140,56 @@ async function run() {
           .json({ message: "you do not have access to make admin" });
       }
     });
+    app.put("/makeAdmin", async (req, res) => {
+      const filter = { email: req.body.email };
+      const result = await usersCollection.find(filter).toArray();
+      if (result) {
+        const documents = await usersCollection.updateOne(filter, {
+          $set: { role: "admin" },
+        });
+        console.log(documents);
+      }
+    });
+
+    // check admin or not
+    app.get("/checkAdmin/:email", async (req, res) => {
+      const result = await usersCollection
+        .find({ email: req.params.email })
+        .toArray();
+
+      res.json(result);
+    });
+    //order delete
+    app.delete("/deleteOrder/:id", async (req, res) => {
+      const result = await ordersCollection.deleteOne({
+        _id: ObjectId(req.params.id),
+      });
+      // console.log(result);
+      res.json(result);
+    });
+    /// all order
+    app.get("/allOrders", async (req, res) => {
+      // console.log("hello");
+      const result = await ordersCollection.find({}).toArray();
+      res.json(result);
+    });
+
+    // status update
+    app.put("/statusUpdate/:id", async (req, res) => {
+      const filter = { _id: ObjectId(req.params.id) };
+      console.log(req.params.id);
+      const result = await ordersCollection.updateOne(filter, {
+        $set: {
+          status: req.body.status,
+        },
+      });
+      res.json(result);
+    });
   } finally {
+    // await client.close();
   }
 }
+
 run().catch((err) => console.error(err));
 
 app.get("/", (req, res) => {
